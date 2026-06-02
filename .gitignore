@@ -1,0 +1,59 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+*.egg-info/
+dist/
+build/
+
+# Virtual environments
+venv/
+env/
+.env
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test files
+*.blend1
+*.blend2
+*.bak
+
+# Temporary files
+*.tmp
+*.log
+temp/
+tmp/
+
+# Node modules (for .opencode)
+.opencode/node_modules/
+
+# Local development
+*.local
+.env.local
+
+# Model files (large binary files)
+*.ckpt
+*.pt
+*.pth
+*.h5
+
+# API keys
+ID-KEY.txt
+
+# Test/temp scripts
+create_robot.py
+detailed_robot.py
+enhanced_detailed_robot.py
+generate_robot.py
+*_scene.json
+test_scene.json
