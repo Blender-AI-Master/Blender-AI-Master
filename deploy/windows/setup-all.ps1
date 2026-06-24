@@ -45,6 +45,15 @@ param(
 $ErrorActionPreference = "Stop"
 $startTime = Get-Date
 $here = Split-Path -Parent $MyInvocation.MyCommand.Path
+
+# 找单步脚本:可能在 $here (跟 setup-all 同层) 或 $here\setup\ (deploy-package 标准结构)
+$setupDir = $here
+if (Test-Path (Join-Path $here "setup\copy-source.ps1")) {
+    $setupDir = Join-Path $here "setup"
+} elseif (-not (Test-Path (Join-Path $here "copy-source.ps1"))) {
+    throw "找不到 copy-source.ps1 (既不在 $here 也不在 $here\setup\)"
+}
+
 if (-not $SourceDir) {
     # 默认假设 setup-all.ps1 在 deploy-package\ 下,源码在 ..\BlenderAiMaster\
     $SourceDir = Join-Path (Split-Path -Parent $here) "BlenderAiMaster"
@@ -69,7 +78,7 @@ Write-Host "==============================================="
 
 # --- 1. Copy source -------------------------------------------------------
 Step 1 "Copying source code to $DestDir ..."
-& "$here\copy-source.ps1" -SourceDir $SourceDir -DestDir $DestDir
+& "$setupDir\copy-source.ps1" -SourceDir $SourceDir -DestDir $DestDir
 Ok "Source copied"
 
 # --- 2. Backend .env ------------------------------------------------------
@@ -106,20 +115,20 @@ if ($patched -match "HUNYUAN_SECRET_ID=AKID\.\.\." -or $patched -notmatch "HUNYU
 
 # --- 3. Install API service ----------------------------------------------
 Step 3 "Installing Node API as Windows Service ..."
-& "$here\install-api-service.ps1" -InstallDir $backendDir
+& "$setupDir\install-api-service.ps1" -InstallDir $backendDir
 Ok "API service installed"
 
 # --- 4. Install nginx ----------------------------------------------------
 Step 4 "Installing nginx reverse proxy ..."
 $frontendDst = Join-Path $DestDir "frontend"
 if ($SkipFrontend) { $frontendDst = "$DestDir\frontend-placeholder" }
-& "$here\install-nginx.ps1" -FrontendDir $frontendDst
+& "$setupDir\install-nginx.ps1" -FrontendDir $frontendDst
 Ok "nginx installed"
 
 # --- 5. Cert --------------------------------------------------------------
 Step 5 "Setting up cert ..."
 if ($PfxPath -and (Test-Path $PfxPath)) {
-    & "$here\import-cert.ps1" -PfxPath $PfxPath
+    & "$setupDir\import-cert.ps1" -PfxPath $PfxPath
     Ok "Cert imported from $PfxPath"
     Restart-Service nginx
 } else {
