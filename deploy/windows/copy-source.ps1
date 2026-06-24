@@ -58,10 +58,24 @@ if (Test-Path $srcPluginDist) {
 }
 
 # --- 3. npm ci + build backend ---
-Write-Host "[3/4] Installing backend dependencies..." -ForegroundColor Yellow
+Write-Host "[3/5] Installing backend dependencies (no native compile)..." -ForegroundColor Yellow
+$setupScriptsDir = Join-Path (Split-Path -Parent (Split-Path -Parent $PSCommandPath)) "setup"
+$vendorDepsScript = Join-Path $setupScriptsDir "install-vendor-deps.ps1"
+if (-not (Test-Path $vendorDepsScript)) {
+    # fallback: 跟 copy-source.ps1 同目录的 setup/ 路径
+    $vendorDepsScript = Join-Path (Split-Path -Parent $PSCommandPath) "setup\install-vendor-deps.ps1"
+}
+if (Test-Path $vendorDepsScript) {
+    & $vendorDepsScript -BackendDir $backendDst
+} else {
+    Write-Host "  (vendor script not found, falling back to plain npm ci)" -ForegroundColor Yellow
+    Push-Location $backendDst
+    try { npm ci --omit=dev --no-audit --no-fund } catch { npm ci --no-audit --no-fund }
+    Pop-Location
+}
+
+Write-Host "[4/5] Building backend..." -ForegroundColor Yellow
 Push-Location $backendDst
-try { npm ci --omit=dev --no-audit --no-fund } catch { npm ci --no-audit --no-fund }
-Write-Host "[4/4] Building backend..." -ForegroundColor Yellow
 npm run build
 Pop-Location
 Write-Host "  Built $backendDst\dist" -ForegroundColor Green
