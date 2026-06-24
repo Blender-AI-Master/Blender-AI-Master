@@ -32,8 +32,9 @@ New-Item -ItemType Directory -Path $DestDir -Force | Out-Null
 
 # --- 1. Backend ---
 Write-Host "[1/4] Copying backend..." -ForegroundColor Yellow
-$exclude = @("node_modules", "dist", "data.db", "data.db-shm", "data.db-wal", "*.bak", "*.log", ".env", "certs\*.pfx")
-robocopy $backendSrc $backendDst /MIR /XD node_modules dist /XF data.db data.db-shm data.db-wal "*.bak" "*.log" ".env" "*.pfx" 2>&1 | Out-Null
+$exclude = @("node_modules", "data.db", "data.db-shm", "data.db-wal", "*.bak", "*.log", ".env", "certs\*.pfx")
+# backend: include dist (so user doesn't have to build on the server)
+robocopy $backendSrc $backendDst /MIR /XD node_modules /XF data.db data.db-shm data.db-wal "*.bak" "*.log" ".env" "*.pfx" 2>&1 | Out-Null
 Write-Host "  → $backendDst" -ForegroundColor Green
 
 # --- 2. Frontend (built dist only) ---
@@ -46,6 +47,15 @@ if (Test-Path $frontendDst) { Remove-Item $frontendDst -Recurse -Force }
 New-Item -ItemType Directory -Path $frontendDst -Force | Out-Null
 Copy-Item "$feDist\*" $frontendDst -Recurse -Force
 Write-Host "  → $frontendDst" -ForegroundColor Green
+
+# --- 2b. Copy plugin's built zip for users to download from server ---
+$srcPluginDist = Join-Path (Split-Path -Parent $backendSrc) "plugin\dist"
+if (Test-Path $srcPluginDist) {
+    $pluginZipDst = "C:\blender-ai\frontend\downloads"
+    New-Item -ItemType Directory -Path $pluginZipDst -Force | Out-Null
+    Copy-Item "$srcPluginDist\*.zip" $pluginZipDst -Force -ErrorAction SilentlyContinue
+    Write-Host "  → plugin zip(s) at $pluginZipDst" -ForegroundColor Green
+}
 
 # --- 3. npm ci + build backend ---
 Write-Host "[3/4] Installing backend dependencies..." -ForegroundColor Yellow

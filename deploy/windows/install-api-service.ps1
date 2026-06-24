@@ -67,7 +67,7 @@ if (-not (Test-Path $envFile)) {
 }
 
 # --- 4. Build dist if missing --------------------------------------------
-$distIndex = Join-Path $InstallDir "dist\index.js"
+$distIndex = Join-Path $InstallDir "dist\src\index.js"
 if (-not (Test-Path $distIndex)) {
     Write-Host "[3/4] Building backend (npm run build)..." -ForegroundColor Yellow
     Push-Location $InstallDir
@@ -88,7 +88,7 @@ if (Get-Service $ServiceName -ErrorAction SilentlyContinue) {
 # 注册
 & $NssmExe install $ServiceName $NodeExe
 & $NssmExe set $ServiceName AppDirectory   $InstallDir
-& $NssmExe set $ServiceName AppParameters  "--env-file=$envFile dist/index.js"
+& $NssmExe set $ServiceName AppParameters  "--env-file=$envFile dist/src/index.js"
 & $NssmExe set $ServiceName DisplayName    "Blender-AI Master API"
 & $NssmExe set $ServiceName Description    "Node.js backend for Blender-AI Master plugin. Binds 127.0.0.1:$Port."
 & $NssmExe set $ServiceName Start          SERVICE_AUTO_START
