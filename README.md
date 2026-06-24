@@ -27,7 +27,7 @@
 5. **开始创作**:3D 视图侧栏 → AI 助手 → 输入描述 / 选图 → 点 "生成 3D 模型"
 
 > **生产用户**:如果你想用官方线上服务,把 **API Server** 切到 `Production (www.blender-ai.com:8443)` 并去 https://www.blender-ai.com/dashboard/api-keys 申请 Key。
-> 生产环境的部署见 [`docs/DEPLOY.md`](docs/DEPLOY.md)。
+> 生产环境的部署见 [`docs/DEPLOY.md`](docs/DEPLOY.md)(Windows Server 2025)。Linux 部署见 [`docs/DEPLOY-LINUX.md`](docs/DEPLOY-LINUX.md)。
 
 ### API Server 选项
 
@@ -116,11 +116,18 @@ BlenderAiMaster\
 │   │   ├── start-https-local.ps1    ← 本地 HTTPS 代理 (模拟生产)
 │   │   └── https-proxy.mjs          ← Node HTTPS 反代
 │   ├── deploy\
-│   │   ├── nginx-8443.conf          ← 生产 nginx API 配置
-│   │   └── nginx-443.conf           ← 生产 nginx 前端配置
+│   │   ├── nginx-8443.conf          ← Linux: nginx API 配置
+│   │   ├── nginx-443.conf           ← Linux: nginx 前端配置
+│   │   └── windows\                 ← Windows Server 2025 部署
+│   │       ├── DEPLOY-WINDOWS.md    ←   主文档
+│   │       ├── copy-source.ps1      ←   复制源码
+│   │       ├── install-api-service.ps1  ←   注册 Node API 服务
+│   │       ├── install-nginx.ps1    ←   装 nginx + 防火墙
+│   │       └── import-cert.ps1      ←   导入 DigiCert 证书
 │   ├── docs\
 │   │   ├── BACKEND_API.md           ← 插件↔后端 API 合约
-│   │   └── DEPLOY.md                ← 完整生产部署指南
+│   │   ├── DEPLOY.md                ← Windows Server 2025 部署 (主)
+│   │   └── DEPLOY-LINUX.md           ← Linux 部署 (备)
 │   ├── install.ps1 / install.bat    ← Windows 一键安装
 │   └── dist\
 │       └── blender-ai-assistant-2.6.0.zip   ← 打包好的插件
