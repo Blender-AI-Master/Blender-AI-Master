@@ -1,13 +1,43 @@
 """Tencent Hunyuan3D API implementation using official SDK."""
 
 import os
+import sys
 import time
 import base64
-from tencentcloud.ai3d.v20250513 import ai3d_client, models
-from tencentcloud.common import credential
-from tencentcloud.common.profile import client_profile
+
+_plugin_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_sdk_vendor_dir = os.path.join(_plugin_dir, "sdk_vendor")
+
+def _ensure_sdk_in_path():
+    if _sdk_vendor_dir not in sys.path:
+        sys.path.insert(0, _sdk_vendor_dir)
 
 from .base import BaseAPI, APIResponse, APIStatus
+
+_tencentcloud_imported = False
+_ai3d_client = None
+_models = None
+_credential = None
+_client_profile = None
+
+def _import_tencentcloud():
+    global _tencentcloud_imported, _ai3d_client, _models, _credential, _client_profile
+    if _tencentcloud_imported:
+        return True
+    try:
+        _ensure_sdk_in_path()
+        from tencentcloud.ai3d.v20250513 import ai3d_client, models
+        from tencentcloud.common import credential
+        from tencentcloud.common.profile import client_profile
+        _ai3d_client = ai3d_client
+        _models = models
+        _credential = credential
+        _client_profile = client_profile
+        _tencentcloud_imported = True
+        return True
+    except ImportError as e:
+        print(f"Warning: tencentcloud SDK not available: {e}")
+        return False
 
 
 class Hunyuan3DAPI(BaseAPI):
@@ -22,12 +52,15 @@ class Hunyuan3DAPI(BaseAPI):
         if self._client is not None:
             return self._client
 
-        cred = credential.Credential(self.secret_id, self.secret_key)
-        http_profile = client_profile.HttpProfile()
+        if not _import_tencentcloud():
+            raise RuntimeError("tencentcloud SDK not installed. Please install it or use a different API provider.")
+
+        cred = _credential.Credential(self.secret_id, self.secret_key)
+        http_profile = _client_profile.HttpProfile()
         http_profile.endpoint = "ai3d.tencentcloudapi.com"
-        client_profile_obj = client_profile.ClientProfile()
+        client_profile_obj = _client_profile.ClientProfile()
         client_profile_obj.httpProfile = http_profile
-        self._client = ai3d_client.Ai3dClient(cred, "ap-guangzhou", client_profile_obj)
+        self._client = _ai3d_client.Ai3dClient(cred, "ap-guangzhou", client_profile_obj)
         return self._client
 
     def submit(self, prompt: str = "", image_path: str = "", **kwargs) -> APIResponse:
@@ -37,7 +70,7 @@ class Hunyuan3DAPI(BaseAPI):
 
         try:
             client = self._get_client()
-            req = models.SubmitHunyuanTo3DProJobRequest()
+            req = _models.SubmitHunyuanTo3DProJobRequest()
 
             if image_path:
                 if not os.path.exists(image_path):
@@ -79,7 +112,7 @@ class Hunyuan3DAPI(BaseAPI):
 
         try:
             client = self._get_client()
-            req = models.QueryHunyuanTo3DProJobRequest()
+            req = _models.QueryHunyuanTo3DProJobRequest()
             req.JobId = job_id
 
             resp = client.QueryHunyuanTo3DProJob(req)
@@ -107,7 +140,8 @@ class Hunyuan3DAPI(BaseAPI):
 
     def download(self, job_id: str, output_path: str) -> APIResponse:
         """Download the result GLB file."""
-        import requests
+        _ensure_sdk_in_path()
+        import requests as _requests
 
         response = self.query(job_id)
         if not response.success:
@@ -124,15 +158,15 @@ class Hunyuan3DAPI(BaseAPI):
             return APIResponse(success=False, error="No result files returned")
 
         print(f"DEBUG: result_files type: {type(result_files)}, content: {result_files}")
-        
+
         file_url = result_files[0].Url if hasattr(result_files[0], 'Url') else result_files[0].get('Url')
         if not file_url:
             return APIResponse(success=False, error="No file URL in result")
-        
+
         print(f"DEBUG: file_url = {file_url}")
 
         try:
-            resp = requests.get(file_url, timeout=300)
+            resp = _requests.get(file_url, timeout=300)
             resp.raise_for_status()
 
             os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
@@ -164,7 +198,7 @@ class Hunyuan3DAPI(BaseAPI):
             return False
         try:
             client = self._get_client()
-            req = models.QueryHunyuanTo3DProJobRequest()
+            req = _models.QueryHunyuanTo3DProJobRequest()
             req.JobId = "test"
             client.QueryHunyuanTo3DProJob(req)
             return True

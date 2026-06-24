@@ -47,8 +47,10 @@ tmp/
 *.pth
 *.h5
 
-# API keys
+# API keys & Secrets
 ID-KEY.txt
+config/credentials.json
+config/
 
 # Test/temp scripts
 create_robot.py
@@ -57,3 +59,15 @@ enhanced_detailed_robot.py
 generate_robot.py
 *_scene.json
 test_scene.json
+farm_resume.json
+
+# Large binaries / runtime artifacts
+# (opencode.exe: 143 MB, downloaded at runtime, not source)
+opencode_bin/
+# (60 MB generated test output)
+output/
+# (any compiled binary not tracked separately)
+*.exe
+
+# Credential helper (git auth for push)
+.git-credentials

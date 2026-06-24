@@ -16,7 +16,7 @@ class AIAssistantSettings:
     def _init_defaults(self):
         self.hunyuan_secret_id = ""
         self.hunyuan_secret_key = ""
-        self.selected_model = "triposr"
+        self.selected_model = "hunyuan"
         self.selected_mode = "text2d"
         self.resolution = 256
         self.remove_background = True
@@ -47,7 +47,7 @@ class AIAssistantSettings:
         
         Scene.tsr_selected_model = bpy.props.StringProperty(
             name="Selected Model",
-            default="triposr",
+            default="hunyuan",
             maxlen=64
         )
         

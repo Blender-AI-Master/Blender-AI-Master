@@ -1,0 +1,40 @@
+schema_version = "1.0.0"
+
+id = "cli_anything_blender"
+version = "2.6.0"
+name = "AI Assistant for Blender"
+tagline = "Sign in with your blender-ai.com API key to start generating"
+maintainer = "TripoAR Team <support@blender-ai.com>"
+type = "add-on"
+website = "https://www.blender-ai.com/"
+tags = ["3D View", "Modeling", "AI", "Generation"]
+
+blender_version_min = "4.2.0"
+blender_version_max = "6.0.0"
+
+license = [
+    "SPDX:GPL-3.0-or-later",
+]
+copyright = [
+    "2026 TripoAR Team",
+]
+
+[permissions]
+network = "Connect to www.blender-ai.com:8443 for AI generation, account validation, and balance queries. All requests use a user-supplied API key for billing."
+files = "Save generated models and assets to disk"
+clipboard = "Copy/paste text in chat interface"
+
+[build]
+paths_exclude_pattern = [
+    "__pycache__/",
+    ".*",
+    "*.zip",
+    "dist/",
+    "config/",
+    "Makefile",
+    "blender_manifest.toml.template",
+    "scripts/",
+    "tests/",
+    "*.md",
+    "tools/",
+]

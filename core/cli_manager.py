@@ -8,6 +8,37 @@ import tempfile
 import shlex
 
 
+def _find_system_python() -> str:
+    """查找系统 Python（不是 Blender 的 Python）"""
+    import shutil
+    
+    # Try to find Python 3 using py launcher (Windows)
+    try:
+        result = subprocess.run(
+            ["py", "-3", "-c", "import sys; print(sys.executable)"],
+            capture_output=True,
+            text=True,
+            timeout=10
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            python_path = result.stdout.strip()
+            if os.path.exists(python_path):
+                print(f"DEBUG _find_system_python: found via py -3: {python_path}")
+                return python_path
+    except Exception as e:
+        print(f"DEBUG _find_system_python: py -3 failed: {e}")
+    
+    # Try python command
+    python_path = shutil.which("python") or shutil.which("python3")
+    if python_path:
+        print(f"DEBUG _find_system_python: found via which: {python_path}")
+        return python_path
+    
+    # Fallback to sys.executable but warn
+    print(f"WARNING: Using sys.executable as Python, may not work in Blender context: {sys.executable}")
+    return sys.executable
+
+
 class CLIAnythingManager:
     """管理 CLI-Anything 子进程"""
 
@@ -67,10 +98,24 @@ class CLIAnythingManager:
         # Normalize command options: convert underscore_options to hyphen-options
         import re
         normalized_parts = []
-        for part in cmd_parts:
+        skip_next = False
+        for i, part in enumerate(cmd_parts):
+            if skip_next:
+                skip_next = False
+                continue
             if part.startswith('--'):
                 # Replace all underscores after -- with hyphens
                 part = re.sub(r'^--(.+)$', lambda m: '--' + m.group(1).replace('_', '-'), part)
+                # Normalize --energy to --power for light commands
+                if part == '--energy':
+                    part = '--power'
+            else:
+                # Normalize modifier type names
+                if len(cmd_parts) > 1 and cmd_parts[1] == 'add' and cmd_parts[0] == 'modifier':
+                    # Normalize subdivision -> subdivision_surface
+                    if part == 'subdivision':
+                        part = 'subdivision_surface'
+
             normalized_parts.append(part)
         cmd_parts = normalized_parts
 
@@ -93,23 +138,30 @@ class CLIAnythingManager:
         local_cli = os.path.join(project_root, "cli_anything", "blender", "__main__.py")
 
         # Build environment with PYTHONPATH set to project root to ensure local version is used
-        # Also set PYTHONHOME to prevent Python from loading from wrong installation
         env = os.environ.copy()
-        env['PYTHONPATH'] = project_root
-        env['PYTHONHOME'] = os.path.dirname(sys.executable)
-        env['PYTHONNOUSERSITE'] = '1'
+        env.pop('PYTHONHOME', None)
+        env.pop('PYTHONNOUSERSITE', None)
+
+        # Use system Python instead of Blender's Python to run CLI commands
+        python_exe = _find_system_python()
+        print(f"DEBUG exec python: {python_exe}")
+
+        # Insert local cli_anything at the front of PYTHONPATH to override site-packages version
+        env['PYTHONPATH'] = project_root + os.pathsep + env.get('PYTHONPATH', '')
+        print(f"DEBUG exec PYTHONPATH: {env['PYTHONPATH']}")
 
         # Check if this is a scene new command with --output
         if "scene new" in command and "--output" in command:
             # scene new with output - don't use --project, let it create fresh
-            cmd = [sys.executable, local_cli, "--json"] + cmd_parts
+            cmd = [python_exe, local_cli, "--json"] + cmd_parts
         elif self.project_file and os.path.exists(self.project_file):
             # Use existing project file
-            cmd = [sys.executable, local_cli, "--project", self.project_file, "--json"] + cmd_parts
+            cmd = [python_exe, local_cli, "--project", self.project_file, "--json"] + cmd_parts
         else:
-            cmd = [sys.executable, local_cli, "--json"] + cmd_parts
+            cmd = [python_exe, local_cli, "--json"] + cmd_parts
 
         try:
+            print(f"DEBUG exec cmd: {' '.join(cmd[:5])}... (full length={len(command)})")
             result = subprocess.run(
                 cmd,
                 shell=False,
@@ -122,15 +174,23 @@ class CLIAnythingManager:
                 env=env
             )
 
-            # After scene new with output succeeds, set project file path
-            if "scene new" in command and "--output" in command and result.returncode == 0:
-                # Extract output path from command
+            # After scene new succeeds, set project file path
+            print(f"DEBUG auto-save check: scene_new={'scene new' in command}, returncode={result.returncode}, has_stdout={bool(result.stdout.strip())}")
+            if "scene new" in command and result.returncode == 0 and result.stdout.strip():
                 try:
-                    output_path = self._extract_output_path(command)
-                    if output_path:
-                        self.project_file = output_path
-                except Exception:
-                    pass
+                    # Try to parse the output as JSON
+                    project_data = json.loads(result.stdout)
+                    if "name" in project_data:
+                        # Auto-save to temp file
+                        if not self.project_file:
+                            import uuid
+                            temp_name = f"cli_project_{uuid.uuid4().hex[:8]}.json"
+                            self.project_file = os.path.join(self.project_path, temp_name)
+                        with open(self.project_file, 'w', encoding='utf-8') as f:
+                            json.dump(project_data, f, indent=2, ensure_ascii=False)
+                        print(f"DEBUG: Auto-saved project to {self.project_file}")
+                except Exception as e:
+                    print(f"DEBUG: Failed to auto-save project: {e}")
 
             if result.returncode == 0 and result.stdout.strip():
                 try:
@@ -138,6 +198,7 @@ class CLIAnythingManager:
                 except json.JSONDecodeError:
                     return {"success": True, "output": result.stdout}
             else:
+                print(f"DEBUG exec error: stderr={result.stderr[:500] if result.stderr else 'none'}")
                 return {"success": False, "error": result.stderr or f"命令执行失败 (code {result.returncode})"}
         except subprocess.TimeoutExpired:
             return {"success": False, "error": f"命令执行超时 ({timeout}s)"}

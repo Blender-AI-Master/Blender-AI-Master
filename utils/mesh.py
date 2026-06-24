@@ -47,7 +47,7 @@ def create_blender_mesh(
 
 def load_glb_model(file_path: str, mesh_name: str = "AI_Model") -> bpy.types.Object:
     """Load a GLB file as a Blender mesh."""
-    bpy.ops.import_scene.gltf(filepath=file_path)
+    bpy.ops.import_scene.gltf(filepath=file_path, axis_forward='-Z', axis_up='Y')
     
     imported_objects = [obj for obj in bpy.context.selected_objects]
     

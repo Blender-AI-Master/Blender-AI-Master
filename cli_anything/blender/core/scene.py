@@ -135,7 +135,7 @@ def open_scene(path: str) -> Dict[str, Any]:
     """Open a .blend-cli.json scene file."""
     if not os.path.exists(path):
         raise FileNotFoundError(f"Scene file not found: {path}")
-    with open(path, "r") as f:
+    with open(path, "r", encoding="utf-8") as f:
         project = json.load(f)
     if "version" not in project or "scene" not in project:
         raise ValueError(f"Invalid scene file: {path}")

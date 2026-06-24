@@ -123,7 +123,7 @@ class LLMProvider:
         elif self.provider == "ollama":
             return self._chat_ollama(messages, timeout)
         elif self.provider == "opencode":
-            return self._chat_opencode(messages, timeout)
+            return self._chat_opencode(messages, 600)
         else:
             return {"success": False, "error": f"不支持的提供商: {self.provider}"}
     
@@ -248,16 +248,56 @@ class LLMProvider:
 def parse_commands(response_text: str) -> list:
     """解析 LLM 返回的命令"""
     commands = []
-    for line in response_text.strip().split("\n"):
+    in_thinking_block = False
+    in_cli_section = False
+    
+    lines = response_text.strip().split("\n")
+    
+    for line in lines:
         line = line.strip()
-        if not line or line.startswith("#"):
+        
+        if not line:
             continue
+            
+        if line.startswith("<think>"):
+            in_thinking_block = True
+            continue
+        if line.startswith("</think"):
+            in_thinking_block = False
+            continue
+            
+        if in_thinking_block:
+            continue
+            
+        if "## CLI Commands" in line or "## CLI" in line:
+            in_cli_section = True
+            continue
+        if "## End Commands" in line:
+            in_cli_section = False
+            break
+            
+        if line.startswith("#"):
+            continue
+            
+        if line.startswith("{"):
+            continue
+            
         if line.startswith("```"):
             line = line[3:].strip()
             if line.startswith(("bash", "python", "sh")):
                 line = line[line.find(" ", 4) + 1:].strip() if " " in line[4:] else line[4:]
-        if line and not line.startswith("[") and not line.startswith("输出:"):
+                
+        cli_prefixes = (
+            "scene ", "object ", "material ", "modifier ",
+            "light ", "camera ", "animation ", "render ",
+            "session ", "preview "
+        )
+        
+        if line.startswith(cli_prefixes):
             commands.append(line)
+        elif in_cli_section and line and not line.startswith("[") and not line.startswith("输出:"):
+            commands.append(line)
+            
     return commands
 
 

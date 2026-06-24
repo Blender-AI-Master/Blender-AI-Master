@@ -112,7 +112,7 @@ def apply_material(obj: bpy.types.Object, material_data: Dict[str, Any]) -> None
             bsdf.inputs["Metallic"].default_value = material_data["metallic"]
         if "roughness" in material_data:
             bsdf.inputs["Roughness"].default_value = material_data["roughness"]
-        if "specular" in material_data:
+        if "specular" in material_data and "Specular" in bsdf.inputs:
             bsdf.inputs["Specular"].default_value = material_data["specular"]
 
         # Emission
@@ -124,7 +124,7 @@ def apply_material(obj: bpy.types.Object, material_data: Dict[str, Any]) -> None
 
     # Assign to object
     if obj.data and hasattr(obj.data, 'materials'):
-        if mat not in obj.data.materials:
+        if mat.name not in obj.data.materials:
             obj.data.materials.append(mat)
 
 
@@ -226,7 +226,7 @@ def apply_project(project: Dict[str, Any]) -> None:
                 bsdf.inputs["Metallic"].default_value = mat_data["metallic"]
             if "roughness" in mat_data:
                 bsdf.inputs["Roughness"].default_value = mat_data["roughness"]
-            if "specular" in mat_data:
+            if "specular" in mat_data and "Specular" in bsdf.inputs:
                 bsdf.inputs["Specular"].default_value = mat_data["specular"]
 
             # Emission
