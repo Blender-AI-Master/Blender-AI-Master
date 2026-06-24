@@ -17,13 +17,13 @@
 3. **获取本地 Key**:在另一个终端执行
    ```powershell
    cd website\Blender_AI_Master_H
-   npm run db:create-key -- --email you@example.com --topup 50
+   npm run db:create-key -- --email you@example.com --topup 5
    ```
-   复制输出的 `sk-cp-xxxxxxxx...`
+   复制输出的 `sk-cp-xxxxxxxx...`(`--topup 5` 给新账户充 $5,与系统默认 welcome bonus 一致)
 4. **填入 Key**:Edit → Preferences → Extensions → AI Assistant for Blender
    - **API Key**:粘贴上面那个 `sk-cp-...`
    - **API Server**:选 `Local Dev (http://localhost:3000)` (默认就是这个)
-   - 点 **测试 & 登录** → 应该看到邮箱 + $50 余额
+   - 点 **测试 & 登录** → 应该看到邮箱 + $5 余额
 5. **开始创作**:3D 视图侧栏 → AI 助手 → 输入描述 / 选图 → 点 "生成 3D 模型"
 
 > **生产用户**:如果你想用官方线上服务,把 **API Server** 切到 `Production (www.blender-ai.com:8443)` 并去 https://www.blender-ai.com/dashboard/api-keys 申请 Key。
@@ -177,22 +177,25 @@ BlenderAiMaster\
 
 ```powershell
 cd website\Blender_AI_Master_H
-npm run db:create-key -- --email you@example.com --topup 50
+npm run db:create-key -- --email you@example.com --topup 5
 ```
 
 输出类似:
 ```
 KEY: sk-cp-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 Save this! It will not be shown again.
-Topped up: $50.00
+Topped up: $5.00
 ```
+
+> 默认新用户通过 `POST /v1/auth/register` 注册也会自动获得 $5 welcome bonus(见 `src/routes/auth.ts`)。
+> 上面的 `--topup 5` 只是给本地 CLI 走的同一条路径(避免双重信用)。
 
 #### Run Plugin Against Local Backend
 
 1. 打开 Blender → Edit → Preferences → Extensions → AI Assistant for Blender
 2. 粘贴上面得到的 `sk-cp-...` KEY
 3. **API Server 选择 "Local Dev"** (默认就是这个)
-4. 点 **测试 & 登录** → 应该看到邮箱 + $50 余额
+4. 点 **测试 & 登录** → 应该看到邮箱 + $5 余额
 5. 3D 视图侧栏 → AI 助手 → 开始生成
 
 #### Simulate Production HTTPS Locally (optional)

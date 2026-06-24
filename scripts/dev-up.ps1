@@ -73,7 +73,7 @@ Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "Need an API key for testing? Run in another terminal:" -ForegroundColor Gray
 Write-Host "  cd website\Blender_AI_Master_H" -ForegroundColor Gray
-Write-Host "  npm run db:create-key -- --email you@example.com --topup 50" -ForegroundColor Gray
+Write-Host "  npm run db:create-key -- --email you@example.com --topup 5" -ForegroundColor Gray
 Write-Host ""
 Write-Host "Want to simulate production HTTPS (https://www.blender-ai.com:8443)?" -ForegroundColor Gray
 Write-Host "  Run scripts\start-https-local.ps1 in another terminal" -ForegroundColor Gray
