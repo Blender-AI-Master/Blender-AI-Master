@@ -61,11 +61,9 @@ class AIAI_AddonPreferences(AddonPreferences):
         layout = self.layout
         # 单一大 box 包住 LOGO + API Key + 警告 (模仿 fal.ai 截图布局)
         main_box = layout.box()
-        # LOGO 上下空间距离缩小 4/5 (保留 1/5):前后各加 factor=0.2 的小间隔
-        main_box.separator(factor=0.2)
-        # LOGO 居中显示 (scale=8.0)
-        _branding.draw_header(main_box, scale=8.0)
-        main_box.separator(factor=0.2)
+        # LOGO (用 text + 小 icon,避免 1067x160 banner 被 template_icon 拉变形留白)
+        _branding.draw_header(main_box)
+        main_box.separator()
         # API Key 标签 + 输入框
         main_box.label(text="API Key:")
         main_box.prop(self, "playground_api_key", text="")

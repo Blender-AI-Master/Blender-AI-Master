@@ -1,44 +1,84 @@
-"""Blender-AI Master brand assets exposed to the Blender UI."""
+"""Blender-AI Master brand assets exposed to the Blender UI.
+
+Renders a header at the top of the addon preferences panel.
+Falls back to text if image loading fails (so the panel is never broken).
+"""
 import os
 import bpy
 import bpy.utils.previews
 
+
 _BRANDING_DIR = os.path.join(os.path.dirname(__file__), "resources", "branding")
 _previews = None
+_wordmark_loaded = False
 
 
 def register() -> None:
-    global _previews
+    """Load the wordmark PNG into Blender's preview cache. Idempotent."""
+    global _previews, _wordmark_loaded
     if _previews is not None:
         return
-    _previews = bpy.utils.previews.new()
-    # 优先加载白色版(深色 Blender 主题下可见),如果不存在则用原始版本
+    try:
+        _previews = bpy.utils.previews.new()
+    except Exception as e:
+        print(f"[branding] previews.new() failed: {e}")
+        return
+
     white_path = os.path.join(_BRANDING_DIR, "blender-ai-wordmark-white.png")
-    orig_path = os.path.join(_BRANDING_DIR, "blender-ai-wordmark.png")
+    orig_path  = os.path.join(_BRANDING_DIR, "blender-ai-wordmark.png")
+    chosen = None
     if os.path.exists(white_path):
-        _previews.load("wordmark", white_path, "IMAGE")
-    else:
-        _previews.load("wordmark", orig_path, "IMAGE")
+        chosen = white_path
+    elif os.path.exists(orig_path):
+        chosen = orig_path
+
+    if chosen:
+        try:
+            _previews.load("wordmark", chosen, "IMAGE")
+            _wordmark_loaded = True
+        except Exception as e:
+            print(f"[branding] failed to load {chosen}: {e}")
+            _wordmark_loaded = False
 
 
 def unregister() -> None:
-    global _previews
+    global _previews, _wordmark_loaded
     if _previews is not None:
-        bpy.utils.previews.remove(_previews)
+        try:
+            bpy.utils.previews.remove(_previews)
+        except Exception:
+            pass
         _previews = None
+    _wordmark_loaded = False
 
 
 def wordmark_icon_id() -> int:
-    return _previews["wordmark"].icon_id if _previews else 0
+    """Return the icon_id for the loaded wordmark, or 0 if not loaded."""
+    if _previews is None or not _wordmark_loaded:
+        return 0
+    try:
+        return _previews["wordmark"].icon_id
+    except KeyError:
+        return 0
 
 
-def draw_header(layout, scale=16.0):
-    """Render the wordmark image centered at the top of a panel (like fal.ai).
+def draw_header(layout, scale=1.0):
+    """Render a header at the top of the preferences panel.
 
-    LOGO 缩小一倍 (scale 32.0 -> 16.0),源图来自 C:/Users/Administrator/Desktop/jietu/15.png (1067x160, RGBA)。
+    Uses a small icon (scale=1.0) + text label as the title.
+    Avoids the original problem where scale=8.0 + a wide 1067x160 PNG
+    caused Blender's `template_icon` to reserve ~160px of empty space
+    (icon would clip to a square and appear blank).
+
+    The `scale` parameter is kept for API compatibility but ignored.
     """
-    if _previews is None:
-        return
+    icon_id = wordmark_icon_id()
     row = layout.row()
     row.alignment = "CENTER"
-    row.template_icon(icon_value=wordmark_icon_id(), scale=scale)
+    # 用一个小的 icon + 文字 logo,清晰可见
+    if icon_id != 0:
+        # icon + 文字 - icoid 跟其他 icon 一致大小,不会撑大 layout
+        row.label(text="Blender-AI Master", icon_value=icon_id)
+    else:
+        # fallback: 纯文字 + Blender 内置 icon
+        row.label(text="Blender-AI Master", icon="OUTLINER")
