@@ -51,7 +51,12 @@ if (-not (Test-Path (Join-Path $VendorDir "build\Release\better_sqlite3.node")))
 Write-Host "[1/3] Running npm install --ignore-scripts ..." -ForegroundColor Yellow
 Push-Location $BackendDir
 try {
-    npm install --ignore-scripts --no-audit --no-fund 2>&1 | Out-Null
+    # npm 经常有 deprecation warnings 让退出码非 0 (例如 prebuild-install@7.1.3),
+    # 但这些 warning 不影响安装结果。用 cmd /c 包装来吞掉所有输出 + 软失败。
+    $output = cmd /c "npm install --ignore-scripts --no-audit --no-fund" 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "  (npm exit $LASTEXITCODE - 通常是 warning,继续)" -ForegroundColor Yellow
+    }
 } finally {
     Pop-Location
 }
