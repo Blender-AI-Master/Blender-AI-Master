@@ -51,14 +51,42 @@ if (-not (Test-Path (Join-Path $VendorDir "build\Release\better_sqlite3.node")))
 Write-Host "[1/3] Running npm install --ignore-scripts ..." -ForegroundColor Yellow
 Push-Location $BackendDir
 try {
-    # npm 经常有 deprecation warnings 让退出码非 0 (例如 prebuild-install@7.1.3),
-    # 但这些 warning 不影响安装结果。用 cmd /c 包装来吞掉所有输出 + 软失败。
-    $output = cmd /c "npm install --ignore-scripts --no-audit --no-fund" 2>&1
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host "  (npm exit $LASTEXITCODE - 通常是 warning,继续)" -ForegroundColor Yellow
+    # 用 .NET Process 直接调 node + npm-cli.js,绕过 npm.cmd (后者会改 working dir 导致解析失败)
+    $nodePath = (Get-Command node).Source
+    $npmCli   = Join-Path (Split-Path -Parent $nodePath) "node_modules\npm\bin\npm-cli.js"
+    if (-not (Test-Path $npmCli)) {
+        throw "找不到 npm-cli.js: $npmCli (Node 安装有问题?)"
+    }
+    $psi = New-Object System.Diagnostics.ProcessStartInfo
+    $psi.FileName = $nodePath
+    $psi.Arguments = "`"$npmCli`" install --ignore-scripts --no-audit --no-fund --loglevel=error"
+    $psi.WorkingDirectory = (Get-Location).Path
+    $psi.RedirectStandardOutput = $true
+    $psi.RedirectStandardError = $true
+    $psi.UseShellExecute = $false
+    $psi.CreateNoWindow = $true
+    $p = [System.Diagnostics.Process]::Start($psi)
+    $stdout = $p.StandardOutput.ReadToEnd()
+    $stderr = $p.StandardError.ReadToEnd()
+    $p.WaitForExit()
+    $ec = $p.ExitCode
+    Pop-Location   # 必须在 $p 引用前 pop
+    if ($ec -ne 0) {
+        # stderr 是 warning 而非 error,容忍
+        $isWarn = ($stderr -notmatch "(?i)ERR!|Error:") -and ($stdout -notmatch "(?i)ERR!|Error:")
+        if ($isWarn) {
+            Write-Host "  (npm exit $ec - 看起来是 warning,继续)" -ForegroundColor Yellow
+        } else {
+            Write-Host "  npm stdout (前 30 行):" -ForegroundColor Red
+            ($stdout -split "`n" | Select-Object -First 30) | ForEach-Object { Write-Host "    $_" }
+            Write-Host "  npm stderr (前 30 行):" -ForegroundColor Red
+            ($stderr -split "`n" | Select-Object -First 30) | ForEach-Object { Write-Host "    $_" }
+            throw "npm install failed (exit $ec)"
+        }
     }
 } finally {
-    Pop-Location
+    # 如果还没 pop 就 pop
+    if ((Get-Location).Path -eq $BackendDir) { Pop-Location -ErrorAction SilentlyContinue }
 }
 Write-Host "  OK" -ForegroundColor Green
 
@@ -77,12 +105,32 @@ Copy-Item (Join-Path $VendorDir "lib\*") "$bs3\lib\" -Recurse -Force
 Write-Host "  OK (size: $((Get-Item "$bs3\build\Release\better_sqlite3.node").Length) bytes)" -ForegroundColor Green
 
 Write-Host "[3/3] Verifying better-sqlite3 loads ..." -ForegroundColor Yellow
-$test = Push-Location $BackendDir
+Push-Location $BackendDir
 try {
-    $r = node -e "const db=require('better-sqlite3')(':memory:'); console.log('OK', db.prepare('SELECT 1 AS a').get());" 2>&1
-    if ($LASTEXITCODE -ne 0) { throw "load failed: $r" }
-    Write-Host "  $r" -ForegroundColor Green
-} finally { Pop-Location }
+    # 用 .NET Process 避免 PowerShell 误把 stderr 当 error
+    $nodePath = (Get-Command node).Source
+    $psi = New-Object System.Diagnostics.ProcessStartInfo
+    $psi.FileName = $nodePath
+    $psi.Arguments = "-e `"const db=require('better-sqlite3')(':memory:'); console.log('OK', db.prepare('SELECT 1 AS a').get());`""
+    $psi.WorkingDirectory = (Get-Location).Path
+    $psi.RedirectStandardOutput = $true
+    $psi.RedirectStandardError = $true
+    $psi.UseShellExecute = $false
+    $psi.CreateNoWindow = $true
+    $p = [System.Diagnostics.Process]::Start($psi)
+    $stdout = $p.StandardOutput.ReadToEnd()
+    $stderr = $p.StandardError.ReadToEnd()
+    $p.WaitForExit()
+    if ($p.ExitCode -ne 0) {
+        Write-Host "  load failed (exit $($p.ExitCode)):" -ForegroundColor Red
+        Write-Host "    stdout: $stdout"
+        Write-Host "    stderr: $stderr"
+        throw "better-sqlite3 load test failed"
+    }
+    Write-Host "  $stdout" -ForegroundColor Green
+} finally {
+    Pop-Location
+}
 
 Write-Host ""
 Write-Host "=== Native deps installed without compiling ===" -ForegroundColor Green
