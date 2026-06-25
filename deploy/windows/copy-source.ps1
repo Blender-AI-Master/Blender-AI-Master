@@ -32,10 +32,23 @@ New-Item -ItemType Directory -Path $DestDir -Force | Out-Null
 
 # --- 1. Backend ---
 Write-Host "[1/4] Copying backend..." -ForegroundColor Yellow
-$exclude = @("node_modules", "data.db", "data.db-shm", "data.db-wal", "*.bak", "*.log", ".env", "certs\*.pfx")
+$exclude = @("node_modules", "data.db", "data.db-shm", "data.db-wal", "*.bak", "*.log", "certs\*.pfx")
 # backend: include dist (so user doesn't have to build on the server)
-robocopy $backendSrc $backendDst /MIR /XD node_modules /XF data.db data.db-shm data.db-wal "*.bak" "*.log" ".env" "*.pfx" 2>&1 | Out-Null
+# 注: .env 不在 exclude,因为我们要先复制 .env.example 进来
+robocopy $backendSrc $backendDst /MIR /XD node_modules /XF data.db data.db-shm data.db-wal "*.bak" "*.log" "*.pfx" 2>&1 | Out-Null
 Write-Host "  → $backendDst" -ForegroundColor Green
+
+# --- 1b. Create .env from .env.example if not present ---
+$envExample = Join-Path $backendDst ".env.example"
+$envFile    = Join-Path $backendDst ".env"
+if (-not (Test-Path $envFile) -and (Test-Path $envExample)) {
+    Copy-Item $envExample $envFile -Force
+    Write-Host "  Created .env from .env.example (edit before starting service)" -ForegroundColor Yellow
+} elseif (Test-Path $envFile) {
+    Write-Host "  .env already present" -ForegroundColor Green
+} else {
+    Write-Host "  WARN: no .env.example found at $envExample" -ForegroundColor Yellow
+}
 
 # --- 2. Frontend (built dist only) ---
 Write-Host "[2/4] Copying frontend dist..." -ForegroundColor Yellow
