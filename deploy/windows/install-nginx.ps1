@@ -28,16 +28,17 @@ if (-not (Test-Path $nginxExe)) {
     New-Item -ItemType Directory -Path $InstallDir -Force | Out-Null
     # Latest stable as of 2025; pinned to 1.27.5 (works on Server 2025)
     $url = "http://nginx.org/download/nginx-1.27.5.zip"
-    $tmp = "$env:TEMP\nginx.zip"
+    $tmp = Join-Path $env:TEMP "nginx.zip"
+    $extractDir = Join-Path $env:TEMP "nginx-extract"
     Invoke-WebRequest -Uri $url -OutFile $tmp -UseBasicParsing
-    Expand-Archive -Path $tmp -DestinationPath "$env:TEMP\nginx-extract" -Force
+    Expand-Archive -Path $tmp -DestinationPath $extractDir -Force
     # zip 顶层就是 nginx-1.27.5/
-    $extracted = Get-ChildItem "$env:TEMP\nginx-extract" -Directory | Select-Object -First 1
+    $extracted = Get-ChildItem $extractDir -Directory | Select-Object -First 1
     # 把所有内容挪到 $InstallDir
     Get-ChildItem $extracted.FullName -Force | ForEach-Object {
         Move-Item $_.FullName $InstallDir -Force
     }
-    Remove-Item $tmp, "$env:TEMP\nginx-extract" -Recurse -Force -ErrorAction SilentlyContinue
+    Remove-Item $tmp, $extractDir -Recurse -Force -ErrorAction SilentlyContinue
     Write-Host "  Installed nginx to $InstallDir" -ForegroundColor Green
 } else {
     Write-Host "[1/5] nginx already present" -ForegroundColor Green

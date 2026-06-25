@@ -57,21 +57,22 @@ if (-not (Test-Path $NssmExe)) {
         }
     }
     if (-not $got) { throw "NSSM 全部源都下不了,手动下放到 $NssmExe 后再跑" }
-    Expand-Archive -Path $tmp -DestinationPath "$env:TEMP\nssm-extract" -Force
+    $extractDir = Join-Path $env:TEMP "nssm-extract"
+    Expand-Archive -Path $tmp -DestinationPath $extractDir -Force
     # nssm zip contains win64/ and win32/ subfolders
-    $win64 = Get-ChildItem "$env:TEMP\nssm-extract" -Recurse -Filter "nssm.exe" -ErrorAction SilentlyContinue |
+    $win64 = Get-ChildItem $extractDir -Recurse -Filter "nssm.exe" -ErrorAction SilentlyContinue |
         Where-Object { $_.DirectoryName -like "*win64*" } | Select-Object -First 1
     if (-not $win64) {
         # dkxce fork 的 zip 是扁平结构,直接 nssm.exe 在根
-        $win64 = Get-ChildItem "$env:TEMP\nssm-extract" -Recurse -Filter "nssm.exe" -ErrorAction SilentlyContinue |
+        $win64 = Get-ChildItem $extractDir -Recurse -Filter "nssm.exe" -ErrorAction SilentlyContinue |
             Where-Object { $_.DirectoryName -match "win64" -or $_.DirectoryName -match "amd64" } | Select-Object -First 1
         if (-not $win64) {
-            $win64 = Get-ChildItem "$env:TEMP\nssm-extract" -Recurse -Filter "nssm.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+            $win64 = Get-ChildItem $extractDir -Recurse -Filter "nssm.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
         }
     }
     if (-not $win64) { throw "下载的 zip 里没找到 nssm.exe" }
     Copy-Item $win64.FullName $NssmExe -Force
-    Remove-Item $tmp, "$env:TEMP\nssm-extract" -Recurse -Force -ErrorAction SilentlyContinue
+    Remove-Item $tmp, $extractDir -Recurse -Force -ErrorAction SilentlyContinue
     Write-Host "  Installed NSSM to $NssmExe" -ForegroundColor Green
 } else {
     Write-Host "[1/4] NSSM already present at $NssmExe" -ForegroundColor Green
