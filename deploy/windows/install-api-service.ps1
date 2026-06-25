@@ -36,15 +36,40 @@ $NssmExe = "$NssmDir\nssm.exe"
 if (-not (Test-Path $NssmExe)) {
     Write-Host "[1/4] NSSM not found, downloading..." -ForegroundColor Yellow
     New-Item -ItemType Directory -Path $NssmDir -Force | Out-Null
-    $url = "https://nssm.cc/release/nssm-2.24.zip"
+    # 试多个源 (nssm.cc/release/ 经常 503):
+    #   1) nssm.cc/ci/ - 官方 CI build,稳定
+    #   2) github.com/dkxce/nssm - 社区维护的 fork v2.25
+    $urls = @(
+        "https://nssm.cc/ci/nssm-2.24-101-g897c7ad.zip"
+        "https://github.com/dkxce/NSSM/releases/download/v2.25/NSSM_v2.25.zip"
+    )
     $tmp = "$env:TEMP\nssm.zip"
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-    Invoke-WebRequest -Uri $url -OutFile $tmp -UseBasicParsing
+    $got = $false
+    foreach ($url in $urls) {
+        try {
+            Write-Host "  试 $url ..." -ForegroundColor Gray
+            Invoke-WebRequest -Uri $url -OutFile $tmp -UseBasicParsing -TimeoutSec 30
+            $got = $true
+            break
+        } catch {
+            Write-Host "  ✗ $url 失败: $($_.Exception.Message)" -ForegroundColor Yellow
+        }
+    }
+    if (-not $got) { throw "NSSM 全部源都下不了,手动下放到 $NssmExe 后再跑" }
     Expand-Archive -Path $tmp -DestinationPath "$env:TEMP\nssm-extract" -Force
     # nssm zip contains win64/ and win32/ subfolders
     $win64 = Get-ChildItem "$env:TEMP\nssm-extract" -Recurse -Filter "nssm.exe" -ErrorAction SilentlyContinue |
         Where-Object { $_.DirectoryName -like "*win64*" } | Select-Object -First 1
-    if (-not $win64) { throw "Could not find nssm.exe in $tmp" }
+    if (-not $win64) {
+        # dkxce fork 的 zip 是扁平结构,直接 nssm.exe 在根
+        $win64 = Get-ChildItem "$env:TEMP\nssm-extract" -Recurse -Filter "nssm.exe" -ErrorAction SilentlyContinue |
+            Where-Object { $_.DirectoryName -match "win64" -or $_.DirectoryName -match "amd64" } | Select-Object -First 1
+        if (-not $win64) {
+            $win64 = Get-ChildItem "$env:TEMP\nssm-extract" -Recurse -Filter "nssm.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+        }
+    }
+    if (-not $win64) { throw "下载的 zip 里没找到 nssm.exe" }
     Copy-Item $win64.FullName $NssmExe -Force
     Remove-Item $tmp, "$env:TEMP\nssm-extract" -Recurse -Force -ErrorAction SilentlyContinue
     Write-Host "  Installed NSSM to $NssmExe" -ForegroundColor Green
